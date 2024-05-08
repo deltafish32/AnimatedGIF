@@ -125,6 +125,7 @@ typedef struct gif_file_tag
   int32_t iSize; // file size
   uint8_t *pData; // memory file pointer
   void * fHandle; // class pointer to File/SdFat or whatever you want
+  int32_t iNextPos;
 } GIFFILE;
 
 typedef struct gif_info_tag
@@ -215,6 +216,7 @@ class AnimatedGIF
     void begin(unsigned char ucPaletteType = GIF_PALETTE_RGB565_LE);
     void begin(int iEndian, unsigned char ucPaletteType) { begin(ucPaletteType); };
     int playFrame(bool bSync, int *delayMilliseconds, void *pUser = NULL);
+    int nextFrame(bool init = false);
     int getCanvasWidth();
     int allocTurboBuf(GIF_ALLOC_CALLBACK *pfnAlloc);
     int allocFrameBuf(GIF_ALLOC_CALLBACK *pfnAlloc);

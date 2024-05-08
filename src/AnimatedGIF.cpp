@@ -252,6 +252,9 @@ long lTime = millis();
     {
         (*_gif.pfnSeek)(&_gif.GIFFile, 0); // seek to start
     }
+
+    int32_t iStartPos = _gif.GIFFile.iPos;
+
     if (GIFParseInfo(&_gif, 0))
     {
         _gif.pUser = pUser;
@@ -262,23 +265,29 @@ long lTime = millis();
         } else {
             rc = DecodeLZW(&_gif, 0);
         }
-        if (rc != 0) // problem
+        if (rc != 0) { // problem
+            _gif.GIFFile.iNextPos = _gif.GIFFile.iPos;
             return -1;
+        }
     }
     else
     {
+        _gif.GIFFile.iNextPos = _gif.GIFFile.iPos;
+
         // The file is "malformed" in that there is a bunch of non-image data after
         // the last frame. Return as if all is well, though if needed getLastError()
         // can be used to see if a frame was actually processed:
         // GIF_SUCCESS -> frame processed, GIF_EMPTY_FRAME -> no frame processed
         if (_gif.iError == GIF_EMPTY_FRAME)
         {
-	    if (delayMilliseconds)
+            if (delayMilliseconds)
                 *delayMilliseconds = 0;
             return 0;
         }
+
         return -1; // error parsing the frame info, we may be at the end of the file
     }
+
     // Return 1 for more frames or 0 if this was the last frame
     if (bSync)
     {
@@ -288,8 +297,18 @@ long lTime = millis();
            delay(_gif.iFrameDelay - lTime);
 #endif // __LINUX__
     }
+    
     if (delayMilliseconds) // if not NULL, return the frame delay time
         *delayMilliseconds = _gif.iFrameDelay;
+
+    _gif.GIFFile.iNextPos = _gif.GIFFile.iPos;
+    (*_gif.pfnSeek)(&_gif.GIFFile, iStartPos);
+
     return (_gif.GIFFile.iPos < _gif.GIFFile.iSize-10);
 } /* playFrame() */
 
+
+int AnimatedGIF::nextFrame(bool init) {
+    (*_gif.pfnSeek)(&_gif.GIFFile, init ? 0 : _gif.GIFFile.iNextPos);
+    return (_gif.GIFFile.iPos < _gif.GIFFile.iSize-10);
+}
