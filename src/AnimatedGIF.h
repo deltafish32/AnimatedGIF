@@ -208,6 +208,11 @@ typedef struct gif_image_tag
 class AnimatedGIF
 {
   public:
+    AnimatedGIF() {}
+    virtual ~AnimatedGIF() {
+      close();
+    }
+
     int open(uint8_t *pData, int iDataSize, GIF_DRAW_CALLBACK *pfnDraw);
     int openFLASH(uint8_t *pData, int iDataSize, GIF_DRAW_CALLBACK *pfnDraw);
     int open(const char *szFilename, GIF_OPEN_CALLBACK *pfnOpen, GIF_CLOSE_CALLBACK *pfnClose, GIF_READ_CALLBACK *pfnRead, GIF_SEEK_CALLBACK *pfnSeek, GIF_DRAW_CALLBACK *pfnDraw);
