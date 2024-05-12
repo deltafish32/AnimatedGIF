@@ -196,8 +196,8 @@ typedef struct gif_image_tag
     unsigned short pLocalPalette[(MAX_COLORS * 3)/2]; // color palettes for GIF images
     unsigned char ucLZW[LZW_BUF_SIZE]; // holds de-chunked LZW data
     // These next 3 are used in Turbo mode to have a larger ucLZW buffer
-    unsigned short usGIFTable[1<<MAX_CODE_SIZE];
-    unsigned char ucGIFPixels[(PIXEL_LAST*2)];
+    unsigned short* usGIFTable;
+    unsigned char* ucGIFPixels;
     unsigned char ucLineBuf[MAX_WIDTH]; // current line
 } GIFIMAGE;
 

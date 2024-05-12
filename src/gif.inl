@@ -1382,6 +1382,8 @@ static int DecodeLZW(GIFIMAGE *pImage, int iOptions)
     sMask = 0xffff - sMask;
     cc = (sMask >> 1) + 1; /* Clear code */
     eoi = cc + 1;
+    pImage->usGIFTable = new unsigned short[1 << MAX_CODE_SIZE];
+    pImage->ucGIFPixels = new unsigned char[(PIXEL_LAST * 2)];
     giftabs = pImage->usGIFTable;
     gifpels = pImage->ucGIFPixels;
     pImage->iYCount = pImage->iHeight; // count down the lines
@@ -1438,6 +1440,12 @@ init_codetable:
             oldcode = code;
         }
     } /* while not end of LZW code stream */
+
+    delete[] pImage->usGIFTable;
+    pImage->usGIFTable = nullptr;
+    delete[] pImage->ucGIFPixels;
+    pImage->ucGIFPixels = nullptr;;
+
     return 0;
 //gif_forced_error:
 //    free(pImage->pPixels);
