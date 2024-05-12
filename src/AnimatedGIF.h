@@ -57,7 +57,7 @@
 #ifdef __LINUX__
 #define MAX_WIDTH 2048
 #else
-#define MAX_WIDTH 320
+#define MAX_WIDTH 128
 #endif // __LINUX__
 #define LZW_BUF_SIZE (6*MAX_CHUNK_SIZE)
 #define LZW_HIGHWATER (4*MAX_CHUNK_SIZE)
