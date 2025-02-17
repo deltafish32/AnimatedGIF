@@ -52,7 +52,17 @@
 // with 256 entries
 //
 #define TURBO_BUFFER_SIZE 0x6100
+
+// If you intend to decode generic GIFs, you want this value to be 12. If you are using GIFs solely for animations in
+// your own project, and you control the GIFs you intend to play, then you can save additional RAM here: 
+// the decoder must reserve a minimum of 4 byte * (1<<MAX_CODE_SIZE) for the dictionary, but based on implementation
+// actually reserves 5 byte * (1<<MAX_CODE_SIZE). Small or low colour GIFs may inherently not require a large
+// dictionary. For larger GIFs, the en(!)coder can "voluntarily" choose not to utilize the entire dictionary. I.e.,
+// by preparing (specially encoding) the GIFs, you can save >10kB RAM, but you will not be able to decode arbitrary
+// images anymore. One application to craft such GIFs can be found here (use option -d) 
+// https://create.stephan-brumme.com/flexigif-lossless-gif-lzw-optimization/
 #define MAX_CODE_SIZE 12
+
 #define MAX_COLORS 256
 #ifdef __LINUX__
 #define MAX_WIDTH 2048
@@ -73,7 +83,7 @@
 #define MAX_HASH 5003
 // expanded LZW buffer for Turbo mode
 #define LZW_BUF_SIZE_TURBO (LZW_BUF_SIZE + (2<<MAX_CODE_SIZE) + (PIXEL_LAST*2) + MAX_WIDTH)
-#define LZW_HIGHWATER_TURBO ((LZW_BUF_SIZE_TURBO * 15) / 16)
+#define LZW_HIGHWATER_TURBO ((LZW_BUF_SIZE_TURBO * 14) / 16)
 
 //
 // Pixel types
@@ -150,6 +160,7 @@ typedef struct gif_draw_tag
     uint8_t ucHasTransparency; // flag indicating the transparent color is in use
     uint8_t ucDisposalMethod; // frame disposal method
     uint8_t ucBackground; // background color
+    uint8_t ucPaletteType; // type of palette entries
     uint8_t ucIsGlobalPalette; // Flag to indicate that a global palette, rather than a local palette is being used
 } GIFDRAW;
 
@@ -171,7 +182,7 @@ typedef struct gif_image_tag
     uint16_t iBpp;
     int16_t iError; // last error
     uint16_t iFrameDelay; // delay in milliseconds for this frame
-    uint16_t iRepeatCount; // NETSCAPE animation repeat count. 0=forever
+    int16_t iRepeatCount; // NETSCAPE animation repeat count. 0=forever
     uint16_t iXCount, iYCount; // decoding position in image (countdown values)
     int iLZWOff; // current LZW data offset
     int iLZWSize; // current quantity of data in the LZW buffer
@@ -218,11 +229,15 @@ class AnimatedGIF
     int open(const char *szFilename, GIF_OPEN_CALLBACK *pfnOpen, GIF_CLOSE_CALLBACK *pfnClose, GIF_READ_CALLBACK *pfnRead, GIF_SEEK_CALLBACK *pfnSeek, GIF_DRAW_CALLBACK *pfnDraw);
     void close();
     void reset();
-    void begin(unsigned char ucPaletteType = GIF_PALETTE_RGB565_LE);
-    void begin(int iEndian, unsigned char ucPaletteType) { begin(ucPaletteType); };
+    void begin(uint8_t ucPaletteType = GIF_PALETTE_RGB565_LE);
+    void begin(int iEndian, uint8_t ucPaletteType) { begin(ucPaletteType); };
     int playFrame(bool bSync, int *delayMilliseconds, void *pUser = NULL);
     int nextFrame(bool init = false);
     int getCanvasWidth();
+    int getFrameWidth();
+    int getFrameHeight();
+    int getFrameXOff();
+    int getFrameYOff();
     int allocTurboBuf(GIF_ALLOC_CALLBACK *pfnAlloc);
     int allocFrameBuf(GIF_ALLOC_CALLBACK *pfnAlloc);
     void setTurboBuf(void *pTurboBuffer);
