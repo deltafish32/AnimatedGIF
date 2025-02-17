@@ -1400,6 +1400,7 @@ static int DecodeLZW(GIFIMAGE *pImage, int iOptions)
     //unsigned char **index;
     BIGUINT ulBits;
     unsigned short code;
+    int gif_table_size = (1 << MAX_CODE_SIZE);
     (void)iOptions; // not used for now
     // if output can be used for string table, do it faster
     //       if (bGIF && (OutPage->cBitsperpixel == 8 && ((OutPage->iWidth & 3) == 0)))
@@ -1409,7 +1410,7 @@ static int DecodeLZW(GIFIMAGE *pImage, int iOptions)
     sMask = 0xffff - sMask;
     cc = (sMask >> 1) + 1; /* Clear code */
     eoi = cc + 1;
-    pImage->usGIFTable = new unsigned short[1 << MAX_CODE_SIZE];
+    pImage->usGIFTable = new unsigned short[gif_table_size];
     pImage->ucGIFPixels = new unsigned char[(PIXEL_LAST * 2)];
     giftabs = pImage->usGIFTable;
     gifpels = pImage->ucGIFPixels;
@@ -1433,7 +1434,7 @@ init_codetable:
     nextcode = cc + 2;
     nextlim = (unsigned short) ((1 << codesize));
     // This part of the table needs to be reset multiple times
-    memset(&giftabs[cc], LINK_UNUSED, sizeof(pImage->usGIFTable) - sizeof(giftabs[0])*cc);
+    memset(&giftabs[cc], LINK_UNUSED, (sizeof(unsigned short) * gif_table_size) - sizeof(giftabs[0])*cc);
     ulBits = INTELLONG(&p[pImage->iLZWOff]); // start by reading 4 bytes of LZW data
     GET_CODE
     if (code == cc) // we just reset the dictionary, so get another code
