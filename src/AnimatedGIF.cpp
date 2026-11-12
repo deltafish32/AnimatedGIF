@@ -39,6 +39,7 @@ int AnimatedGIF::open(uint8_t *pData, int iDataSize, GIF_DRAW_CALLBACK *pfnDraw)
     return GIFInit(&_gif);
 } /* open() */
 
+#ifdef ARDUINO
 int AnimatedGIF::openFLASH(uint8_t *pData, int iDataSize, GIF_DRAW_CALLBACK *pfnDraw)
 {
     _gif.iError = GIF_SUCCESS;
@@ -51,7 +52,16 @@ int AnimatedGIF::openFLASH(uint8_t *pData, int iDataSize, GIF_DRAW_CALLBACK *pfn
     _gif.GIFFile.pData = pData;
     return GIFInit(&_gif);
 } /* openFLASH() */
+#endif
+void AnimatedGIF::mergeTransparent(uint8_t *pSrc, uint8_t *pDst, uint8_t ucTrans, int iLen) 
+{
+   GIF_mergeTransparent(pSrc, pDst, ucTrans, iLen);
+} /* mergeTransparent() */
 
+void AnimatedGIF::cookPixels(uint8_t *pSrc, uint8_t *pDst, int iTrans, int iLen, uint32_t *pPalette, uint16_t *pRGB565)
+{
+   GIF_cookPixels(pSrc, pDst, iTrans, iLen, pPalette, pRGB565);
+} /* cookPixels() */
 //
 // Returns the first comment block found (if any)
 //
@@ -77,7 +87,11 @@ int AnimatedGIF::allocFrameBuf(GIF_ALLOC_CALLBACK *pfnAlloc)
         // Allocate a little extra space for the current line
         // as RGB565 or RGB888
         int iCanvasSize = _gif.iCanvasWidth * (_gif.iCanvasHeight+3);
-        _gif.pFrameBuffer = (unsigned char *)(*pfnAlloc)(iCanvasSize);
+        if (pfnAlloc == nullptr) {
+            _gif.pFrameBuffer = (unsigned char *)malloc(iCanvasSize);
+        } else {
+            _gif.pFrameBuffer = (unsigned char *)(*pfnAlloc)(iCanvasSize);
+        }
         if (_gif.pFrameBuffer == NULL)
             return GIF_ERROR_MEMORY;
         return GIF_SUCCESS;
@@ -95,7 +109,11 @@ int AnimatedGIF::allocTurboBuf(GIF_ALLOC_CALLBACK *pfnAlloc)
         // Allocate a little extra space for the current line
         // as RGB565 or RGB888
         int iTurboSize = TURBO_BUFFER_SIZE + (_gif.iCanvasWidth * _gif.iCanvasHeight);
-        _gif.pTurboBuffer = (unsigned char *)(*pfnAlloc)(iTurboSize);
+        if (pfnAlloc == nullptr) {
+            _gif.pTurboBuffer = (unsigned char *)malloc(iTurboSize);
+        } else {
+            _gif.pTurboBuffer = (unsigned char *)(*pfnAlloc)(iTurboSize);
+        }
         if (_gif.pTurboBuffer == NULL)
             return GIF_ERROR_MEMORY;
         return GIF_SUCCESS;
@@ -212,7 +230,12 @@ int AnimatedGIF::getLastError()
 {
     return _gif.iError;
 } /* getLastError() */
-
+#ifdef __LINUX__
+int AnimatedGIF::open(const char *szFilename, GIF_DRAW_CALLBACK *pfnDraw)
+{
+    return GIF_openFile(&_gif, szFilename, pfnDraw);
+} /* open() */
+#endif // __LINUX__
 //
 // File (SD/MMC) based initialization
 //
@@ -250,12 +273,22 @@ void AnimatedGIF::reset()
 
 void AnimatedGIF::begin(unsigned char ucPaletteType)
 {
+uint8_t *p;
+uint32_t u32;
+
     memset(&_gif, 0, sizeof(_gif));
     if (ucPaletteType != GIF_PALETTE_RGB565_LE && ucPaletteType != GIF_PALETTE_RGB565_BE && ucPaletteType != GIF_PALETTE_RGB888)
         _gif.iError = GIF_INVALID_PARAMETER;
     _gif.ucPaletteType = ucPaletteType;
     _gif.ucDrawType = GIF_DRAW_RAW; // assume RAW pixel handling
     _gif.pFrameBuffer = NULL;
+    p = &_gif.ucLineBuf[0];
+    u32 = (uint32_t)(intptr_t)p;
+    u32 &= 15; // align on 16-byte boundary
+    if (u32 > 0) {
+        p += (16-u32);
+    }
+    _gif.pLineBufAligned = p;
 } /* begin() */
 //
 // Play a single frame
@@ -280,8 +313,10 @@ long lTime = millis();
     if (GIFParseInfo(&_gif, 0))
     {
         _gif.pUser = pUser;
-        if (_gif.iError == GIF_EMPTY_FRAME) // don't try to decode it
+        if (_gif.iError == GIF_EMPTY_FRAME) { // don't try to decode it
+            _gif.GIFFile.iNextPos = _gif.GIFFile.iPos;
             return 0;
+        }
         if (_gif.pTurboBuffer) {
             rc = DecodeLZWTurbo(&_gif, 0);
         } else {

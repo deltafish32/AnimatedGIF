@@ -12,15 +12,15 @@
 
 #ifndef __ANIMATEDGIF__
 #define __ANIMATEDGIF__
-#if defined( PICO_BUILD ) || defined( __MACH__ ) || defined( __LINUX__ ) || defined( __MCUXPRESSO )
+#if defined(ARDUINO)
+#include <Arduino.h>
+#else
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #define memcpy_P memcpy
 #define PROGMEM
-#else
-#include <Arduino.h>
 #endif
 
 // Cortex-M4/M7 allow unaligned access to SRAM
@@ -178,6 +178,7 @@ typedef void (GIF_FREE_CALLBACK)(void *buffer);
 typedef struct gif_image_tag
 {
     uint16_t iWidth, iHeight, iCanvasWidth, iCanvasHeight;
+    uint16_t iPrevW, iPrevH, iPrevX, iPrevY; // for disposal method 2 (restore to bg)
     uint16_t iX, iY; // GIF corner offset
     uint16_t iBpp;
     int16_t iError; // last error
@@ -189,6 +190,7 @@ typedef struct gif_image_tag
     int iCommentPos; // file offset of start of comment data
     short sCommentLen; // length of comment
     unsigned char bEndOfFrame;
+    unsigned char ucPrevDisp, ucDisposalMethod;
     unsigned char ucGIFBits, ucBackground, ucTransparent, ucCodeStart, ucMap, bUseLocalPalette;
     unsigned char ucPaletteType; // RGB565 or RGB888
     unsigned char ucDrawType; // RAW or COOKED
@@ -205,11 +207,13 @@ typedef struct gif_image_tag
     unsigned char ucFileBuf[FILE_BUF_SIZE]; // holds temp data and pixel stack
     unsigned short pPalette[(MAX_COLORS * 3)/2]; // can hold RGB565 or RGB888 - set in begin()
     unsigned short pLocalPalette[(MAX_COLORS * 3)/2]; // color palettes for GIF images
-    unsigned char ucLZW[LZW_BUF_SIZE]; // holds de-chunked LZW data
+    int iLocalPalSize, iGlobalPalSize;
+    uint8_t ucLZW[LZW_BUF_SIZE]; // holds de-chunked LZW data
     // These next 3 are used in Turbo mode to have a larger ucLZW buffer
-    unsigned short* usGIFTable;
-    unsigned char* ucGIFPixels;
-    unsigned char ucLineBuf[MAX_WIDTH]; // current line
+    uint16_t *usGIFTable; // dynamically allocated in DecodeLZW()
+    uint8_t *ucGIFPixels; // dynamically allocated in DecodeLZW()
+    uint8_t ucLineBuf[MAX_WIDTH+15]; // current line
+    uint8_t *pLineBufAligned;
 } GIFIMAGE;
 
 #ifdef __cplusplus
@@ -226,6 +230,9 @@ class AnimatedGIF
 
     int open(uint8_t *pData, int iDataSize, GIF_DRAW_CALLBACK *pfnDraw);
     int openFLASH(uint8_t *pData, int iDataSize, GIF_DRAW_CALLBACK *pfnDraw);
+#ifdef __LINUX__
+    int open(const char *szFilename, GIF_DRAW_CALLBACK *pfnDraw);
+#endif
     int open(const char *szFilename, GIF_OPEN_CALLBACK *pfnOpen, GIF_CLOSE_CALLBACK *pfnClose, GIF_READ_CALLBACK *pfnRead, GIF_SEEK_CALLBACK *pfnSeek, GIF_DRAW_CALLBACK *pfnDraw);
     void close();
     void reset();
@@ -238,8 +245,8 @@ class AnimatedGIF
     int getFrameHeight();
     int getFrameXOff();
     int getFrameYOff();
-    int allocTurboBuf(GIF_ALLOC_CALLBACK *pfnAlloc);
-    int allocFrameBuf(GIF_ALLOC_CALLBACK *pfnAlloc);
+    int allocTurboBuf(GIF_ALLOC_CALLBACK *pfnAlloc = nullptr);
+    int allocFrameBuf(GIF_ALLOC_CALLBACK *pfnAlloc = nullptr);
     void setTurboBuf(void *pTurboBuffer);
     void setFrameBuf(void *pFrameBuffer);
     int setDrawType(int iType);
@@ -252,6 +259,8 @@ class AnimatedGIF
     int getInfo(GIFINFO *pInfo);
     int getLastError();
     int getComment(char *destBuffer);
+    void mergeTransparent(uint8_t *pSrc, uint8_t *pDst, uint8_t ucTrans, int iLen);
+    void cookPixels(uint8_t *pSrc, uint8_t *pDst, int iTrans, int iLen, uint32_t *pPalette, uint16_t *pRGB565);
 
   private:
     GIFIMAGE _gif;
@@ -270,6 +279,8 @@ class AnimatedGIF
     int GIF_getInfo(GIFIMAGE *pGIF, GIFINFO *pInfo);
     int GIF_getLastError(GIFIMAGE *pGIF);
     int GIF_getLoopCount(GIFIMAGE *pGIF);
+    void GIF_mergeTransparent(uint8_t *pSrc, uint8_t *pDst, uint8_t ucTrans, int iLen);
+    void GIF_cookPixels(uint8_t *pSrc, uint8_t *pDst, int iTrans, int iLen, uint32_t *pPalette, uint16_t *pRGB565);
 #endif // __cplusplus
 
 #if (INTPTR_MAX == INT64_MAX)

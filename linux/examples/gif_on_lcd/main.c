@@ -5,10 +5,10 @@
 //  Created by Laurence Bank on 8/2/20.
 //  Copyright © 2020 Laurence Bank. All rights reserved.
 //
-#include "../src/AnimatedGIF.h"
-#include "../src/gif.inl"
+#include "../../../src/AnimatedGIF.h"
+#include "../../../src/gif.inl"
 
-#include "../test_images/badgers.h"
+#include "../../../test_images/badgers.h"
 
 GIFIMAGE gif;
 
@@ -28,7 +28,7 @@ int rc, iFrame;
     if (argc == 2) // use filename
         rc = GIF_openFile(&gif, argv[1], GIFDraw);
     else
-        rc = GIF_openRAM(&gif, (uint8_t *)ucBadgers, sizeof(ucBadgers), GIFDraw);
+        rc = GIF_openRAM(&gif, (uint8_t *)badgers, sizeof(badgers), GIFDraw);
     if (rc)
     {
         printf("Successfully opened GIF\n");
